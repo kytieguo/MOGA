@@ -23,12 +23,10 @@ class Encoder(nn.Module):
         return x
 
 class DRP(nn.Module):
-    def __init__(self, gcn_layer, device, omics, layersnums = 2, hidden_size=128, att_heads=2, dropout=0.2, emb_output=128, out_size=32,
-                 omics_n=6, feat_dim_li = [256,256,256,256,256], units_list=[256, 256, 256], use_relu=True, use_bn=True, use_GMP=True):
+    def __init__(self, gcn_layer, device, layersnums = 2, hidden_size=128, att_heads=2, dropout=0.2, emb_output=128, out_size=32,
+                 feat_dim_li = [256,256,256,256,256], units_list=[256, 256, 256], use_relu=True, use_bn=True, use_GMP=True):
         super(DRP, self).__init__()
         self.feature_dim = emb_output
-        self.omics_n = omics_n
-        self.omics = omics
         self.gat_in = emb_output * 2
         self.device = device
         self.units_list = units_list
@@ -99,7 +97,7 @@ class DRP(nn.Module):
         self.batch_port1 = nn.BatchNorm1d(256)
         self.fc_port2 = nn.Linear(256, emb_output)
         # ------Concatenate_six omics
-        self.fcat = nn.Linear(self.feature_dim * self.omics_n, emb_output)
+        self.fcat = nn.Linear(self.feature_dim * 6, emb_output)
         self.batchc = nn.BatchNorm1d(self.feature_dim)
         self.weight = nn.Parameter(torch.Tensor(256, 256))
         self.act = nn.Sigmoid()
@@ -266,34 +264,8 @@ class DRP(nn.Module):
         x_prot = F.relu(self.fc_mut(x_prot))
 
 
-        if self.omics == 'exp,mut,cn,meta,meth':
-            # x_cell = x_expr
-            x_cell = torch.cat((x_expr, x_mutation, x_copy_number, x_meta, x_methy), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
-        elif self.omics == 'exp,mut,cn,meta,prot':
-            # x_cell = x_mutation
-            x_cell = torch.cat((x_expr, x_mutation, x_copy_number, x_meta, x_prot), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
-        elif self.omics == 'exp,mut,cn,meth,prot':
-            # x_cell = x_copy_number
-            x_cell = torch.cat((x_mutation, x_expr, x_copy_number, x_methy, x_prot), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
-        elif self.omics == 'exp,mut,meta,meth,prot':
-            # x_cell = x_meta
-            x_cell = torch.cat((x_mutation, x_expr, x_meta, x_methy, x_prot), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
-        elif self.omics == 'exp,cn,meta,meth,prot':
-            # x_cell = x_methy
-            x_cell = torch.cat((x_expr, x_copy_number, x_meta, x_methy, x_prot), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
-        elif self.omics == 'mut,cn,meta,meth,prot':
-            # x_cell = x_prot
-            x_cell = torch.cat((x_mutation, x_copy_number, x_meta, x_methy, x_prot), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
-        else:
-            print('all omics')
-            x_cell = torch.cat((x_mutation, x_expr, x_copy_number, x_meta, x_methy, x_prot), 1)
-            x_cell = F.leaky_relu(self.fcat(x_cell))
+        x_cell = torch.cat((x_mutation, x_expr, x_copy_number, x_meta, x_methy, x_prot), 1)
+        x_cell = F.leaky_relu(self.fcat(x_cell))
 
         x_all = torch.cat((x_cell, x_drug), 0)
         x_all = self.batchc(x_all)

@@ -8,7 +8,7 @@ from dataset import *
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epochs, omics):
+def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epochs):
     smiles, exp, cn, mut, meta, meth, prot, data_new, nb_cell, nb_drug, data = load_data(cn_f, exp_f, mut_f, meth_f, meta_f,
                                                                                    prot_f, smiles_f, response_f, device)
     edge, atom_shape, cell_feature, drug_feature, cell_dim = process_feat(smiles, exp, cn, mut, meta, meth, prot, data_new, nb_cell, nb_drug)
@@ -20,8 +20,8 @@ def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epoc
     data = data.to(device)
     label = torch.tensor(label).to(device)
 
-    model = DRP(atom_shape, device, omics=omics, layersnums=layer_num, hidden_size=hidden_size, att_heads=att_head, dropout=dropout,
-                emb_output=output, out_size=out_size, omics_n=omics_n, feat_dim_li=cell_dim).to(device)
+    model = DRP(atom_shape, device, layersnums=layer_num, hidden_size=hidden_size, att_heads=att_head, dropout=dropout,
+                emb_output=output, out_size=out_size, feat_dim_li=cell_dim).to(device)
     optim = torch.optim.AdamW(lr=ptlr, weight_decay=ptwd, params=model.parameters())
     l = nn.CrossEntropyLoss()
     early = EarlyStopping(patience=3, verbose=True)
@@ -68,32 +68,24 @@ def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epoc
                 print("Early stopping, best epoch: {:d}".format(e + 1))
                 break
     print("best epoch{:d}|best acc={:.4f}|best auc={:.4f}|best aupr={:.4f}".format(e+1, b_acc.item(), b_auc.item(), b_aupr.item()))
-    emb,label = predict(model, data, drug_feature, cell_feature, edge, nb_cell, tst_idx, label, omics)
-    # return emb.to('cpu'), list(np.array(label.to('cpu')))
+    predict(model, data, drug_feature, cell_feature, edge, nb_cell, tst_idx, label)
 
 
-def predict(model, data, drug_feature, cell_feature, edge, nb_cell, tst_idx, label, omics):
+def predict(model, data, drug_feature, cell_feature, edge, nb_cell, tst_idx, label):
     with torch.no_grad():
         out, _, emb = model(data, drug_feature.x, drug_feature.edge_index, drug_feature.batch, cell_feature, edge,
                               nb_cell)
 
         out = out[tst_idx]
-        t = []
-        l = list(np.array(out.to('cpu'))[:,1])
-        for idx, i in enumerate(l):
-            t.append((idx,i))
-
-        s_l = sorted(t, key=lambda x: x[1], reverse=True)
 
         tst_acc = (out.argmax(dim=1) == label[tst_idx].reshape(-1)).sum(dtype=float) / len(tst_idx)
         tst_auc = get_auc(out, label[tst_idx])
         tst_aupr = get_aupr(out, label[tst_idx])
         precision, recall, f1 = get_confusion(out, label[tst_idx])
         print(
-            'selected_omics={}|acc={:.4f}|auc={:.4f}|aupr={:.4f}|precision={:.4f}|recall={:.4f}|f1={:.4f}'.format(
-                omics, tst_acc, tst_auc, tst_aupr, precision, recall, f1))
+            'acc={:.4f}|auc={:.4f}|aupr={:.4f}|precision={:.4f}|recall={:.4f}|f1={:.4f}'.format(
+                tst_acc, tst_auc, tst_aupr, precision, recall, f1))
 
-    return emb,label
 
 
 
@@ -111,7 +103,6 @@ if __name__ == '__main__':
     args.add_argument("--output", default=128)
     args.add_argument("--att_head", default=3)
     args.add_argument("--layer_num", default=2)
-    args.add_argument("--omics_n", default=6)
 
     args = args.parse_args()
 
@@ -124,7 +115,6 @@ if __name__ == '__main__':
     output = args.output
     att_head = args.att_head
     layer_num = args.layer_num
-    omics_n = args.omics_n
 
     exp_f = 'data/cell_line_expression.csv'
     cn_f = 'data/cell_line_copynumber.csv'
@@ -134,6 +124,4 @@ if __name__ == '__main__':
     prot_f = 'data/cell_line_protein.csv'
     smiles_f = 'data/drug.csv'
     response_f = 'data/response_bak.csv'
-    omics_list = ['all']
-    for i in omics_list:
-        train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epochs, i)
+    train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epochs)

@@ -6,6 +6,7 @@ import random
 from sklearn.metrics import roc_auc_score, precision_recall_curve, f1_score, precision_score, recall_score
 from sklearn.metrics import auc as AUC
 
+
 def zeros(tensor):
     if tensor is not None:
         tensor.data.fill_(0)
@@ -73,7 +74,7 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.Inf
+        self.val_loss_min = np.inf
         self.delta = delta
 
     def __call__(self, val_loss, model):

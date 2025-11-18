@@ -6,6 +6,7 @@ from sklearn.metrics import confusion_matrix
 from model import *
 from dataset import *
 
+
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epochs):
@@ -44,7 +45,7 @@ def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epoc
 
         if e % 1 == 0:
             print("train acc={:.4f}|train auc={:.4f}|train aupr={:.4f}|train precision={:.4f}|train recall={:.4f}|train f1={:.4f}".format(
-                trn_acc.item(), trn_auc.item(), trn_aupr.item(), precision.item(), recall.item(), f1.item()))
+                trn_acc.item(), trn_auc, trn_aupr, precision, recall, f1))
         model.eval()
 
         with torch.no_grad():
@@ -59,15 +60,15 @@ def train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epoc
             val_p, val_r, val_f1 = get_confusion(out, label[val_idx])
             if e % 1 == 0:
                 print("val acc={:.4f}|val auc={:.4f}|val aupr={:.4f}|val precision={:.4f}|val recall={:.4f}|val f1={:.4f}".format(
-                    val_acc.item(), val_auc.item(), val_aupr.item(), val_p, val_r, val_f1))
+                    val_acc.item(), val_auc, val_aupr, val_p, val_r, val_f1))
             b_acc = max(b_acc, val_acc)
             b_auc = max(b_auc, val_auc)
             b_aupr = max(b_aupr, val_aupr)
             early(val_loss, model)
             if early.early_stop:
-                print("Early stopping, best epoch: {:d}".format(e + 1))
+                print("Early stopping, best epoch: " + str(e+1))
                 break
-    print("best epoch{:d}|best acc={:.4f}|best auc={:.4f}|best aupr={:.4f}".format(e+1, b_acc.item(), b_auc.item(), b_aupr.item()))
+    print("best epoch{:d}|best acc={:.4f}|best auc={:.4f}|best aupr={:.4f}".format(e+1, b_acc.item(), b_auc, b_aupr))
     predict(model, data, drug_feature, cell_feature, edge, nb_cell, tst_idx, label)
 
 
@@ -99,7 +100,7 @@ if __name__ == '__main__':
     args.add_argument("--out_size", default=128)
     args.add_argument("--dropout", default=0.2)
     args.add_argument("--ptwd", default=0)
-    args.add_argument("--epochs", default=100)
+    args.add_argument("--epochs", default=2)
     args.add_argument("--output", default=128)
     args.add_argument("--att_head", default=3)
     args.add_argument("--layer_num", default=2)
@@ -123,5 +124,5 @@ if __name__ == '__main__':
     meth_f = 'data/cell_line_methylation.csv'
     prot_f = 'data/cell_line_protein.csv'
     smiles_f = 'data/drug.csv'
-    response_f = 'data/response_bak.csv'
+    response_f = 'data/response.csv'
     train(cn_f, exp_f, mut_f, meth_f, meta_f, prot_f, smiles_f, response_f, epochs)

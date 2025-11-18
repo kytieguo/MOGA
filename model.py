@@ -11,6 +11,7 @@ from torch_geometric.nn import global_mean_pool, global_max_pool
 from torch_geometric.nn.conv import GCNConv, SGConv
 from utils import *
 
+
 class Encoder(nn.Module):
     def __init__(self, in_channels, hidden_channels):
         super(Encoder, self).__init__()
